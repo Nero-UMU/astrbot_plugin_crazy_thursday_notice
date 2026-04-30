@@ -1,0 +1,22 @@
+{
+  "group_ids": {
+    "type": "list",
+    "description": "要推送消息的 QQ 群号列表，每项填字符串格式的群号，如 [\"123456789\"]",
+    "default": []
+  },
+  "platform_id": {
+    "type": "string",
+    "description": "NapCat/aiocqhttp 平台适配器 ID，可在 AstrBot 控制台 → 消息平台 中查看名称",
+    "default": "aiocqhttp"
+  },
+  "cron_expression": {
+    "type": "string",
+    "description": "推送时间的 cron 表达式（时区 Asia/Shanghai），默认每周四中午 12:00",
+    "default": "0 12 * * 4"
+  },
+  "message": {
+    "type": "string",
+    "description": "推送的疯狂星期四文案",
+    "default": "今天是肯德基疯狂星期四！V我50！"
+  }
+}
