@@ -14,9 +14,9 @@ class CrazyThursdayPlugin(Star):
 
     async def initialize(self):
         self.group_ids: list[str] = self.config.get("group_ids", [])
-        self.platform_id: str = self.config.get("platform_id", "aiocqhttp")
         self.cron_expression: str = self.config.get("cron_expression", "0 12 * * 4")
         self.message_text: str = self.config.get("message", "今天是肯德基疯狂星期四！V我50！")
+        self.platform_id: str = self._resolve_platform_id(self.config.get("platform_id", ""))
 
         if not self.group_ids:
             logger.warning("[疯狂星期四] 未配置群号，定时推送不会执行。请在插件配置中填写 group_ids。")
@@ -30,6 +30,14 @@ class CrazyThursdayPlugin(Star):
             timezone="Asia/Shanghai",
         )
         logger.info(f"[疯狂星期四] 定时任务已注册，将向 {len(self.group_ids)} 个群推送。")
+
+    def _resolve_platform_id(self, configured: str) -> str:
+        if configured:
+            return configured
+        for platform in self.context.platform_manager.platform_insts:
+            if platform.meta().name == "aiocqhttp":
+                return platform.meta().id
+        return "aiocqhttp"
 
     async def _push_notice(self):
         message = MessageChain([Plain(self.message_text)])

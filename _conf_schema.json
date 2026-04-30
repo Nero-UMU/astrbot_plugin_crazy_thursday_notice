@@ -6,8 +6,8 @@
   },
   "platform_id": {
     "type": "string",
-    "description": "NapCat/aiocqhttp 平台适配器 ID，可在 AstrBot 控制台 → 消息平台 中查看名称",
-    "default": "aiocqhttp"
+    "description": "NapCat/aiocqhttp 平台适配器 ID（留空则自动检测第一个 aiocqhttp 适配器）",
+    "default": ""
   },
   "cron_expression": {
     "type": "string",
