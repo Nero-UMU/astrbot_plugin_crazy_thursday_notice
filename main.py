@@ -23,6 +23,8 @@ class CrazyThursdayPlugin(Star):
         self.platform_id: str = self._resolve_platform_id(self.config.get("platform_id", ""))
         self.city: str = self.config.get("city", "上海")
         self.mcd_token: str = self.config.get("mcd_token", "")
+        self.mcd_store_code: str = self.config.get("mcd_store_code", "")
+        self.mcd_order_type: int = int(self.config.get("mcd_order_type", "1") or 1)
 
         if not self.group_ids:
             logger.warning("[疯狂星期四] 未配置群号，定时推送不会执行。请在插件配置中填写 group_ids。")
@@ -76,16 +78,40 @@ class CrazyThursdayPlugin(Star):
 
     @filter.command("mcdmenu")
     async def mcd_menu(self, event: AstrMessageEvent):
-        """获取麦当劳菜单（需在后台配置 mcd_token）"""
+        """获取麦当劳菜单（需在后台配置 mcd_token 和 mcd_store_code）"""
         if not self.mcd_token:
             yield event.plain_result("未配置麦当劳 MCP Token，请在插件配置中填写 mcd_token。")
             return
+        if not self.mcd_store_code:
+            yield event.plain_result("未配置麦当劳门店编号，请在插件配置中填写 mcd_store_code。")
+            return
         try:
             async with MCDMenuFetcher(token=self.mcd_token) as fetcher:
-                text = await fetcher.get_menu_text()
+                text = await fetcher.get_menu_text(self.mcd_store_code, self.mcd_order_type)
             yield event.plain_result(text)
         except Exception as e:
             yield event.plain_result(f"获取麦当劳菜单失败：{e}")
+
+    @filter.command("mcddetail")
+    async def mcd_detail(self, event: AstrMessageEvent):
+        """获取麦当劳餐品详情，用法：/mcddetail <餐品编号>"""
+        if not self.mcd_token:
+            yield event.plain_result("未配置麦当劳 MCP Token，请在插件配置中填写 mcd_token。")
+            return
+        if not self.mcd_store_code:
+            yield event.plain_result("未配置麦当劳门店编号，请在插件配置中填写 mcd_store_code。")
+            return
+        args = event.message_str.strip().split(maxsplit=1)
+        if len(args) < 2 or not args[1].strip():
+            yield event.plain_result("请提供餐品编号，用法：/mcddetail <餐品编号>")
+            return
+        code = args[1].strip()
+        try:
+            async with MCDMenuFetcher(token=self.mcd_token) as fetcher:
+                text = await fetcher.get_meal_detail_text(code, self.mcd_store_code, self.mcd_order_type)
+            yield event.plain_result(text)
+        except Exception as e:
+            yield event.plain_result(f"获取餐品详情失败：{e}")
 
     @filter.command("mcdcoupon")
     async def mcd_coupon(self, event: AstrMessageEvent):

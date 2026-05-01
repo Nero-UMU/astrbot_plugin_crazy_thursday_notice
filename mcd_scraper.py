@@ -1,6 +1,6 @@
 """麦当劳 MCP 客户端
 
-通过 Streamable HTTP 协议调用麦当劳官方 MCP Server 获取菜单。
+通过 Streamable HTTP 协议调用麦当劳官方 MCP Server。
 MCP Server: https://mcp.mcd.cn
 文档: https://open.mcd.cn/mcp/doc
 """
@@ -19,6 +19,7 @@ class MCDMenuFetcher:
         self._token = token
         self._session_id: str | None = None
         self._req_id = 0
+        self._tools: list[dict] | None = None
         self._client = httpx.AsyncClient(timeout=timeout, follow_redirects=True)
 
     async def __aenter__(self):
@@ -29,49 +30,61 @@ class MCDMenuFetcher:
 
     # ── 公开接口 ─────────────────────────────────────────────────
 
-    async def get_menu_text(self) -> str:
-        """获取麦当劳菜单（纯文本）。"""
-        raw = await self._invoke_by_keywords(["menu", "菜单", "product", "item"], "菜单")
+    async def get_menu_text(self, store_code: str, order_type: int = 1) -> str:
+        """获取可售餐品列表（纯文本）。"""
+        tool = await self._find_tool(["sellable", "meal", "menu", "product", "item"])
+        if not tool:
+            raise RuntimeError(await self._no_tool_msg("菜单"))
+        args = {"storeCode": store_code, "orderType": order_type}
+        raw = await self._call_tool(tool["name"], args)
+        return _parse_to_plain(raw)
+
+    async def get_meal_detail_text(self, code: str, store_code: str, order_type: int = 1) -> str:
+        """获取餐品详情（纯文本）。"""
+        tool = await self._find_tool(["detail"])
+        if not tool:
+            raise RuntimeError(await self._no_tool_msg("餐品详情"))
+        args = {"code": code, "storeCode": store_code, "orderType": order_type}
+        raw = await self._call_tool(tool["name"], args)
         return _parse_to_plain(raw)
 
     async def get_coupons_text(self) -> str:
         """获取麦当劳优惠券列表（纯文本）。"""
-        raw = await self._invoke_by_keywords(["coupon", "优惠", "offer", "省"], "优惠券")
+        tool = await self._find_tool(["coupon", "offer", "省", "优惠"])
+        if not tool:
+            raise RuntimeError(await self._no_tool_msg("优惠券"))
+        raw = await self._call_tool(tool["name"])
         return _parse_to_plain(raw)
 
     async def list_tool_names(self) -> list[str]:
         """列出所有可用工具名（调试用）。"""
-        await self._initialize()
-        tools = await self._list_tools()
-        return [t.get("name", "") for t in tools]
-
-    async def _invoke_by_keywords(self, keywords: list[str], label: str) -> str:
-        """按关键词优先级查找 tool 并调用，找不到则用第一个 tool。"""
-        await self._initialize()
-        tools = await self._list_tools()
-        if not tools:
-            raise RuntimeError("MCD MCP 未返回任何工具")
-        tool = next(
-            (t for kw in keywords for t in tools if kw in t.get("name", "").lower()),
-            None,
-        )
-        if tool is None:
-            raise RuntimeError(f"未找到{label}相关工具，可用工具：{[t['name'] for t in tools]}")
-        return await self._call_tool(tool["name"])
+        await self._ensure_initialized()
+        return [t.get("name", "") for t in (self._tools or [])]
 
     # ── MCP 协议层 ───────────────────────────────────────────────
 
-    async def _initialize(self) -> None:
+    async def _ensure_initialized(self) -> None:
+        if self._tools is not None:
+            return
         await self._rpc("initialize", {
             "protocolVersion": _PROTOCOL_VERSION,
             "capabilities": {},
             "clientInfo": {"name": "astrbot-plugin", "version": "1.0.0"},
         })
         await self._notify("notifications/initialized")
-
-    async def _list_tools(self) -> list[dict]:
         result = await self._rpc("tools/list")
-        return result.get("result", {}).get("tools", [])
+        self._tools = result.get("result", {}).get("tools", [])
+
+    async def _find_tool(self, keywords: list[str]) -> dict | None:
+        await self._ensure_initialized()
+        return next(
+            (t for kw in keywords for t in (self._tools or []) if kw in t.get("name", "").lower()),
+            None,
+        )
+
+    async def _no_tool_msg(self, label: str) -> str:
+        names = [t.get("name", "") for t in (self._tools or [])]
+        return f"未找到{label}相关工具，可用工具：{names}"
 
     async def _call_tool(self, name: str, arguments: dict | None = None) -> str:
         result = await self._rpc("tools/call", {
@@ -116,63 +129,117 @@ class MCDMenuFetcher:
         resp.raise_for_status()
 
 
-def _parse_to_plain(raw: str) -> str:
-    """将 MCD MCP 返回的 Markdown 响应提取为纯文本。
+# ── 响应解析 ─────────────────────────────────────────────────────
 
-    支持两种常见格式：
-    1. 优惠券列表（含 优惠券标题/状态 字段）
-    2. 菜单列表（含 名称/价格 等字段）
-    对于无法识别的内容，直接去除 HTML 标签后返回。
-    """
-    # 尝试提取结构化列表项（- key：value 格式）
+def _parse_to_plain(raw: str) -> str:
+    """将 MCD MCP 响应转换为纯文本。"""
+    # 从 【{json}】 中提取实际 JSON
+    m = re.search(r"【(\{.+\})】", raw, re.DOTALL)
+    if m:
+        try:
+            return _format_json_data(json.loads(m.group(1)))
+        except (json.JSONDecodeError, KeyError):
+            pass
+
+    # Markdown 列表格式（优惠券等）
+    return _parse_markdown_list(raw)
+
+
+def _format_json_data(data: dict) -> str:
+    payload = data.get("data")
+
+    # ── 菜单列表：data.categories + data.meals ───────────────────
+    if isinstance(payload, dict) and "categories" in payload and "meals" in payload:
+        categories = payload["categories"]
+        meals_dict: dict = payload["meals"]
+        lines: list[str] = []
+        for cat in categories:
+            lines.append(f"\n【{cat.get('name', '')}】")
+            for ref in cat.get("meals", []):
+                code = ref.get("code", "")
+                meal = meals_dict.get(code, {})
+                name = meal.get("name", code)
+                price = meal.get("currentPrice", "")
+                tags = ref.get("tags", [])
+                price_str = f"  ¥{price}" if price else ""
+                tag_str = f"  [{', '.join(tags)}]" if tags else ""
+                lines.append(f"  {name}{price_str}{tag_str}")
+        return "\n".join(lines).strip()
+
+    # ── 餐品详情：data.rounds ────────────────────────────────────
+    if isinstance(payload, dict) and "rounds" in payload:
+        name = payload.get("name", "")
+        code = payload.get("code", "")
+        price = payload.get("price", "")
+        lines = [f"【{name}】  编码:{code}  ¥{price}"]
+        for rnd in payload.get("rounds", []):
+            rnd_name = rnd.get("name", "")
+            min_q = rnd.get("minQuantity", 1)
+            max_q = rnd.get("maxQuantity", 1)
+            qty_str = f"必选{min_q}个" if min_q == max_q else f"选{min_q}~{max_q}个"
+            lines.append(f"  ▸ {rnd_name}（{qty_str}）")
+            for choice in rnd.get("choices", []):
+                lines.append(f"      · {choice.get('name', '')}")
+        return "\n".join(lines)
+
+    # ── 积分商品列表：data 为数组且含 spuName ───────────────────
+    if isinstance(payload, list) and payload and "spuName" in payload[0]:
+        lines = ["【积分兑换商品】"]
+        for item in payload:
+            name = item.get("spuName", "")
+            point = item.get("point", "")
+            lines.append(f"  {name}  {point}积分")
+        return "\n".join(lines)
+
+    # ── 优惠券列表 ───────────────────────────────────────────────
+    if isinstance(payload, list) and payload and (
+        "couponTitle" in payload[0] or "title" in payload[0]
+    ):
+        lines = ["【优惠券列表】"]
+        for item in payload:
+            title = item.get("couponTitle") or item.get("title", "")
+            status = item.get("status") or item.get("state", "")
+            lines.append(f"  {title}  {status}".rstrip())
+        return "\n".join(lines)
+
+    return data.get("message") or "暂无数据"
+
+
+def _parse_markdown_list(raw: str) -> str:
     lines: list[str] = []
     current: dict[str, str] = {}
-
     for line in raw.splitlines():
-        # 去除行尾的 Markdown 换行符 \
         line = line.rstrip().rstrip("\\").strip()
-        # 跳过 HTML 标签行
-        if re.match(r"<[^>]+>", line):
+        if re.match(r"<[^>]+>", line) or line.startswith("【"):
             continue
-        # 列表项起始
         m = re.match(r"^-\s*(.+?)：(.+)$", line)
         if m:
             key, val = m.group(1).strip(), m.group(2).strip()
             if current and key in ("优惠券标题", "名称", "商品名"):
-                lines.append(_format_item(current))
+                lines.append(_fmt_kv(current))
                 current = {}
             current[key] = val
             continue
-        # 缩进续行（key：value）
         m2 = re.match(r"^(.+?)：(.+)$", line)
         if m2 and current:
             current[m2.group(1).strip()] = m2.group(2).strip()
             continue
-        # 普通标题行（如 ### 麦麦省优惠券列表）
         heading = re.sub(r"^#+\s*", "", line)
         if heading and not current:
             lines.append(f"\n【{heading}】")
-
     if current:
-        lines.append(_format_item(current))
-
+        lines.append(_fmt_kv(current))
     result = "\n".join(lines).strip()
-    # 兜底：如果没解析出任何内容，直接去除 HTML 后返回
-    if not result:
-        result = re.sub(r"<[^>]+>", "", raw).strip()
-    return result
+    return result or re.sub(r"<[^>]+>", "", raw).strip()
 
 
-def _format_item(item: dict[str, str]) -> str:
+def _fmt_kv(item: dict[str, str]) -> str:
     name = item.get("优惠券标题") or item.get("名称") or item.get("商品名") or ""
-    status = item.get("状态") or ""
-    price = item.get("价格") or item.get("售价") or ""
-    extra = status or price
+    extra = item.get("状态") or item.get("价格") or item.get("售价") or ""
     return f"  {name}  {extra}".rstrip()
 
 
 def _parse_mcp_response(resp: httpx.Response) -> dict:
-    """兼容 application/json 和 text/event-stream 两种响应格式。"""
     ct = resp.headers.get("content-type", "")
     if "text/event-stream" in ct:
         for line in resp.text.splitlines():
