@@ -49,18 +49,17 @@ class MCDClient:
         result = _extract_data(raw, list)
         return (result if result is not None else []), raw
 
-    async def get_menu_raw(self, store_code: str, order_type: int = 1) -> str:
-        """返回 query-meals 的完整 MCP 响应 JSON，用于调试。"""
+    async def get_menu_raw(self, store_code: str, order_type: int = 1, be_code: str | None = None) -> str:
+        """返回 query-meals 的原始响应文本。"""
         await self._ensure_session()
-        result = await self._call_tool_full(_TOOL_MENU, {
-            "storeCode": store_code,
-            "orderType": order_type,
-        })
-        return json.dumps(result, ensure_ascii=False, indent=2)
+        args: dict = {"storeCode": store_code, "orderType": order_type}
+        if be_code is not None:
+            args["beCode"] = be_code
+        return await self._call_tool(_TOOL_MENU, args)
 
-    async def get_menu(self, store_code: str, order_type: int = 1) -> dict:
+    async def get_menu(self, store_code: str, order_type: int = 1, be_code: str | None = None) -> dict:
         """返回菜单 {categories: [...], meals: {code: {name, currentPrice}}}。"""
-        raw = await self.get_menu_raw(store_code, order_type)
+        raw = await self.get_menu_raw(store_code, order_type, be_code)
         return self.parse_menu(raw)
 
     @staticmethod
@@ -71,14 +70,13 @@ class MCDClient:
             raise RuntimeError(f"菜单数据解析失败，原始响应：{raw}")
         return result
 
-    async def get_meal_detail(self, code: str, store_code: str, order_type: int = 1) -> dict:
+    async def get_meal_detail(self, code: str, store_code: str, order_type: int = 1, be_code: str | None = None) -> dict:
         """返回餐品详情 {code, price, rounds: [...]}。"""
         await self._ensure_session()
-        raw = await self._call_tool(_TOOL_DETAIL, {
-            "code": code,
-            "storeCode": store_code,
-            "orderType": order_type,
-        })
+        args: dict = {"code": code, "storeCode": store_code, "orderType": order_type}
+        if be_code is not None:
+            args["beCode"] = be_code
+        raw = await self._call_tool(_TOOL_DETAIL, args)
         result = _extract_data(raw, dict)
         return result if result is not None else {}
 

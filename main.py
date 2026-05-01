@@ -12,6 +12,7 @@ from .mcd_scraper import MCDClient
 
 _PLUGIN_DATA_DIR = Path(__file__).parent.parent.parent / "plugin_data" / "astrbot_plugin_crazy_thursday_notice"
 _MENU_CACHE_FILE = _PLUGIN_DATA_DIR / "menu_cache.json"
+_STORE_MAP_FILE = _PLUGIN_DATA_DIR / "store_map.json"
 
 
 def _load_menu_cache() -> dict | None:
@@ -21,17 +22,40 @@ def _load_menu_cache() -> dict | None:
         return None
 
 
-def _save_menu_cache(store_code: str, store_name: str, order_type: int, menu: dict) -> None:
+def _save_menu_cache(store_code: str, store_name: str, order_type: int, be_code: str, menu: dict) -> None:
     _PLUGIN_DATA_DIR.mkdir(parents=True, exist_ok=True)
     cache = {
         "store_code": store_code,
         "store_name": store_name,
+        "be_code": be_code,
         "order_type": order_type,
         "updated_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
         "categories": menu.get("categories", []),
         "meals": menu.get("meals", {}),
     }
     _MENU_CACHE_FILE.write_text(json.dumps(cache, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def _load_store_map() -> dict[str, dict]:
+    try:
+        return json.loads(_STORE_MAP_FILE.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
+def _save_store_map(stores: list[dict]) -> None:
+    """将门店列表持久化，key 为 storeCode，value 含 beCode、storeName、address。"""
+    _PLUGIN_DATA_DIR.mkdir(parents=True, exist_ok=True)
+    existing = _load_store_map()
+    for s in stores:
+        code = s.get("storeCode", "")
+        if code:
+            existing[code] = {
+                "beCode": s.get("beCode", ""),
+                "storeName": s.get("storeName", ""),
+                "address": s.get("address", ""),
+            }
+    _STORE_MAP_FILE.write_text(json.dumps(existing, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 def _format_menu(store_code: str, store_name: str, order_type: int, menu: dict) -> str:
@@ -212,14 +236,15 @@ class CrazyThursdayPlugin(Star):
             async with MCDClient(token=self.mcd_token) as client:
                 stores, raw = await client.find_stores(city)
             if stores:
+                _save_store_map(stores)
                 lines = [f"📍 {city} 附近麦当劳门店：\n"]
                 for s in stores:
                     dist = f"  {s.get('distance', '')}" if s.get("distance") else ""
-                    lines.append(f"  [{s.get('storeCode', '')}] {s.get('storeName', '')}  {s.get('address', '')}{dist}")
+                    be_code = s.get('beCode', '')
+                    lines.append(f"  [{s.get('storeCode', '')}] {s.get('storeName', '')}  beCode={be_code}  {s.get('address', '')}{dist}")
                 lines.append("\n使用 /mcdmenu <门店编号> 查看菜单。")
                 yield event.plain_result("\n".join(lines))
             else:
-                # 解析失败，直接把原始文本返回给用户
                 yield event.plain_result(raw or f"未找到 {city} 附近的麦当劳门店。")
         except Exception as e:
             yield event.plain_result(f"查询门店失败：{e}")
@@ -237,14 +262,15 @@ class CrazyThursdayPlugin(Star):
                 "可用 /mcdstore 查询附近门店编号。"
             )
             return
+        store_map = _load_store_map()
+        store_info = store_map.get(store_code, {})
+        be_code = store_info.get("beCode", "") or None
+        store_name = store_info.get("storeName", "")
         try:
             async with MCDClient(token=self.mcd_token) as client:
-                raw = await client.get_menu_raw(store_code, self.mcd_order_type)
-                menu = client.parse_menu(raw)
-            store_name = ""
-            _save_menu_cache(store_code, store_name, self.mcd_order_type, menu)
-            formatted = _format_menu(store_code, store_name, self.mcd_order_type, menu)
-            yield event.plain_result(f"=== 原始响应 ===\n{raw}\n\n=== 解析结果 ===\n{formatted}")
+                menu = await client.get_menu(store_code, self.mcd_order_type, be_code)
+            _save_menu_cache(store_code, store_name, self.mcd_order_type, be_code or "", menu)
+            yield event.plain_result(_format_menu(store_code, store_name, self.mcd_order_type, menu))
         except Exception as e:
             yield event.plain_result(f"获取菜单失败：{e}")
 
@@ -272,10 +298,11 @@ class CrazyThursdayPlugin(Star):
             if self.mcd_token:
                 store_code = cache.get("store_code", self.mcd_store_code)
                 order_type = cache.get("order_type", self.mcd_order_type)
+                be_code = cache.get("be_code") or None
                 if store_code:
                     try:
                         async with MCDClient(token=self.mcd_token) as client:
-                            detail = await client.get_meal_detail(query, store_code, order_type)
+                            detail = await client.get_meal_detail(query, store_code, order_type, be_code)
                         detail_text = _format_detail(detail)
                         if detail_text:
                             lines.append("\n套餐组成：")
@@ -299,10 +326,11 @@ class CrazyThursdayPlugin(Star):
             if self.mcd_token:
                 store_code = cache.get("store_code", self.mcd_store_code)
                 order_type = cache.get("order_type", self.mcd_order_type)
+                be_code = cache.get("be_code") or None
                 if store_code:
                     try:
                         async with MCDClient(token=self.mcd_token) as client:
-                            detail = await client.get_meal_detail(code, store_code, order_type)
+                            detail = await client.get_meal_detail(code, store_code, order_type, be_code)
                         detail_text = _format_detail(detail)
                         if detail_text:
                             lines.append("\n套餐组成：")
