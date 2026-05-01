@@ -72,13 +72,13 @@ class CrazyThursdayPlugin(Star):
             except Exception as e:
                 logger.error(f"[疯狂星期四] 向群 {group_id} 发送出错：{e}")
 
-    @filter.command("kfc")
+    @filter.command("kfctest")
     async def kfc_test(self, event: AstrMessageEvent):
         """手动触发一次疯狂星期四推送（用于测试）"""
         await self._push_notice()
         yield event.plain_result("疯狂星期四推送已触发。")
 
-    @filter.command("kfc menu")
+    @filter.command("kfcmenu")
     async def kfc_menu(self, event: AstrMessageEvent):
         """获取当前 KFC 菜单"""
         try:
