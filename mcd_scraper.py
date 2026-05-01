@@ -50,12 +50,13 @@ class MCDClient:
         return (result if result is not None else []), raw
 
     async def get_menu_raw(self, store_code: str, order_type: int = 1) -> str:
-        """返回 query-meals 的原始响应文本，用于调试。"""
+        """返回 query-meals 的完整 MCP 响应 JSON，用于调试。"""
         await self._ensure_session()
-        return await self._call_tool(_TOOL_MENU, {
+        result = await self._call_tool_full(_TOOL_MENU, {
             "storeCode": store_code,
             "orderType": order_type,
         })
+        return json.dumps(result, ensure_ascii=False, indent=2)
 
     async def get_menu(self, store_code: str, order_type: int = 1) -> dict:
         """返回菜单 {categories: [...], meals: {code: {name, currentPrice}}}。"""
@@ -106,6 +107,10 @@ class MCDClient:
         result = await self._rpc("tools/call", {"name": name, "arguments": arguments or {}})
         content = result.get("result", {}).get("content", [])
         return "\n".join(c.get("text", "") for c in content if c.get("type") == "text")
+
+    async def _call_tool_full(self, name: str, arguments: dict | None = None) -> dict:
+        """返回 tools/call 的完整 result，包含所有 content 类型，用于调试。"""
+        return await self._rpc("tools/call", {"name": name, "arguments": arguments or {}})
 
     # ── HTTP 层 ───────────────────────────────────────────────────
 
