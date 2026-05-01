@@ -1,13 +1,13 @@
 {
   "group_ids": {
     "type": "list",
-    "description": "要推送消息的 QQ 群号列表，每项填字符串格式的群号，如 [\"123456789\"]",
+    "description": "要推送消息的 QQ 群号列表",
     "default": []
   },
   "cron_expression": {
     "type": "string",
-    "description": "推送时间的 cron 表达式（时区 Asia/Shanghai），默认每周四中午 12:00",
-    "default": "* * * * *"
+    "description": "推送时间的 cron 表达式，默认每周四中午 12:00",
+    "default": "0 12 * * 4"
   },
   "message": {
     "type": "string",
