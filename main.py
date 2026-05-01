@@ -82,10 +82,23 @@ class CrazyThursdayPlugin(Star):
             return
         try:
             async with MCDMenuFetcher(token=self.mcd_token) as fetcher:
-                menu_text = await fetcher.get_menu_text()
-            yield event.plain_result(menu_text)
+                text = await fetcher.get_menu_text()
+            yield event.plain_result(text)
         except Exception as e:
             yield event.plain_result(f"获取麦当劳菜单失败：{e}")
+
+    @filter.command("mcdcoupon")
+    async def mcd_coupon(self, event: AstrMessageEvent):
+        """获取麦当劳优惠券列表（需在后台配置 mcd_token）"""
+        if not self.mcd_token:
+            yield event.plain_result("未配置麦当劳 MCP Token，请在插件配置中填写 mcd_token。")
+            return
+        try:
+            async with MCDMenuFetcher(token=self.mcd_token) as fetcher:
+                text = await fetcher.get_coupons_text()
+            yield event.plain_result(text)
+        except Exception as e:
+            yield event.plain_result(f"获取麦当劳优惠券失败：{e}")
 
     @filter.command("kfctest")
     async def kfc_test(self, event: AstrMessageEvent):
