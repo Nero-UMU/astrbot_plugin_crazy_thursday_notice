@@ -37,8 +37,8 @@ CITY_COORDS: dict[str, tuple[float, float]] = {
 @dataclass
 class MenuItem:
     name: str
-    price: float        # 元
-    orig_price: float   # 原价（元），0 表示无折扣
+    price: float  # 元
+    orig_price: float  # 原价（元），0 表示无折扣
     category: str
     description: str = ""
     image_url: str = ""
@@ -71,7 +71,9 @@ class KFCMenuFetcher:
         if city and city in CITY_COORDS:
             lat, lng = CITY_COORDS[city]
         elif city:
-            raise ValueError(f"不支持的城市名 '{city}'，请改用经纬度，或从以下城市选择：{', '.join(CITY_COORDS)}")
+            raise ValueError(
+                f"不支持的城市名 '{city}'，请改用经纬度，或从以下城市选择：{', '.join(CITY_COORDS)}"
+            )
         self.lat = lat
         self.lng = lng
         self._client = httpx.AsyncClient(
@@ -112,12 +114,16 @@ class KFCMenuFetcher:
             category = MenuCategory(name=cat_name)
             self._parse_items_into(category, raw_cat.get("menuList", []))
             if include_sold_out:
-                self._parse_items_into(category, raw_cat.get("disabledMenuList", []), available=False)
+                self._parse_items_into(
+                    category, raw_cat.get("disabledMenuList", []), available=False
+                )
             # 部分分类下还有子分类
             for sub_cat in raw_cat.get("childClassList", []):
                 self._parse_items_into(category, sub_cat.get("menuList", []))
                 if include_sold_out:
-                    self._parse_items_into(category, sub_cat.get("disabledMenuList", []), available=False)
+                    self._parse_items_into(
+                        category, sub_cat.get("disabledMenuList", []), available=False
+                    )
             if category.items:
                 result.append(category)
         return result
@@ -152,7 +158,9 @@ class KFCMenuFetcher:
         resp.raise_for_status()
         data = resp.json()
         if data.get("code") != 0:
-            raise RuntimeError(f"KFC API 返回错误：code={data.get('code')}，msg={data.get('msg')}")
+            raise RuntimeError(
+                f"KFC API 返回错误：code={data.get('code')}，msg={data.get('msg')}"
+            )
         return data["data"]["dataMenu"]["menuData"]
 
     def _build_payload(self) -> dict:

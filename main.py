@@ -1,9 +1,9 @@
 import httpx
 
-from astrbot.api.event import filter, AstrMessageEvent, MessageChain
-from astrbot.api.star import Context, Star, register
 from astrbot.api import logger
+from astrbot.api.event import AstrMessageEvent, MessageChain, filter
 from astrbot.api.message_components import Plain
+from astrbot.api.star import Context, Star, register
 
 from .kfc_scraper import KFCMenuFetcher
 
@@ -21,7 +21,12 @@ async def _fetch_crazy_copy() -> str:
         return ""
 
 
-@register("astrbot_plugin_crazy_thursday_notice", "NeroUMU", "每到周四自动向 QQ 群推送疯狂星期四提醒、疯四文案及 KFC 菜单", "1.0.0")
+@register(
+    "astrbot_plugin_crazy_thursday_notice",
+    "NeroUMU",
+    "每到周四自动向 QQ 群推送疯狂星期四提醒、疯四文案及 KFC 菜单",
+    "1.0.0",
+)
 class CrazyThursdayPlugin(Star):
     def __init__(self, context: Context, config: dict | None = None):
         super().__init__(context)
@@ -34,18 +39,34 @@ class CrazyThursdayPlugin(Star):
         self.push_days: list[str] = self.config.get("push_days", ["周四"])
         self.push_hours: list[str] = self.config.get("push_hours", ["12"])
         self.push_minutes: list[str] = self.config.get("push_minutes", ["0"])
-        self.reminder_text: str = self.config.get("reminder_text", "今天是肯德基疯狂星期四！V我50！")
+        self.reminder_text: str = self.config.get(
+            "reminder_text", "今天是肯德基疯狂星期四！V我50！"
+        )
         self.enable_menu: bool = self.config.get("enable_menu", True)
         self.enable_crazy_copy: bool = self.config.get("enable_crazy_copy", True)
-        self.platform_id: str = self._resolve_platform_id(self.config.get("platform_id", ""))
+        self.platform_id: str = self._resolve_platform_id(
+            self.config.get("platform_id", "")
+        )
         self.city: str = self.config.get("city", "上海市")
 
         if not self.group_ids:
-            logger.warning("[疯狂星期四] 未配置群号，定时推送不会执行。请在插件配置中填写 group_ids。")
+            logger.warning(
+                "[疯狂星期四] 未配置群号，定时推送不会执行。请在插件配置中填写 group_ids。"
+            )
             return
 
-        _day_map = {"周日": "sun", "周一": "mon", "周二": "tue", "周三": "wed", "周四": "thu", "周五": "fri", "周六": "sat"}
-        days_str = ",".join(_day_map[d] for d in self.push_days if d in _day_map) or "thu"
+        _day_map = {
+            "周日": "sun",
+            "周一": "mon",
+            "周二": "tue",
+            "周三": "wed",
+            "周四": "thu",
+            "周五": "fri",
+            "周六": "sat",
+        }
+        days_str = (
+            ",".join(_day_map[d] for d in self.push_days if d in _day_map) or "thu"
+        )
         hours_str = ",".join(h.lstrip("0") or "0" for h in self.push_hours) or "12"
         minutes_str = ",".join(m.lstrip("0") or "0" for m in self.push_minutes) or "0"
         cron_expression = f"{minutes_str} {hours_str} * * {days_str}"
@@ -57,7 +78,9 @@ class CrazyThursdayPlugin(Star):
             description=f"KFC 菜单推送（{', '.join(self.push_days)} {', '.join(self.push_hours)}:{', '.join(self.push_minutes)}）",
             timezone="Asia/Shanghai",
         )
-        logger.info(f"[疯狂星期四] 定时任务已注册，将向 {len(self.group_ids)} 个群推送。")
+        logger.info(
+            f"[疯狂星期四] 定时任务已注册，将向 {len(self.group_ids)} 个群推送。"
+        )
 
     def _resolve_platform_id(self, configured: str) -> str:
         if configured:
@@ -95,11 +118,15 @@ class CrazyThursdayPlugin(Star):
             session = f"{self.platform_id}:GroupMessage:{group_id}"
             for content in messages:
                 try:
-                    success = await self.context.send_message(session, MessageChain([Plain(content)]))
+                    success = await self.context.send_message(
+                        session, MessageChain([Plain(content)])
+                    )
                     if success:
                         logger.info(f"[疯狂星期四] 已向群 {group_id} 推送消息。")
                     else:
-                        logger.warning(f"[疯狂星期四] 向群 {group_id} 发送失败：未找到平台 {self.platform_id}。")
+                        logger.warning(
+                            f"[疯狂星期四] 向群 {group_id} 发送失败：未找到平台 {self.platform_id}。"
+                        )
                 except Exception as e:
                     logger.error(f"[疯狂星期四] 向群 {group_id} 发送出错：{e}")
 
