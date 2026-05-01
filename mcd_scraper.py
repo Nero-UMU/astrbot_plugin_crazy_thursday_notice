@@ -176,7 +176,14 @@ def _json_candidates(raw: str) -> list[str]:
         if line.startswith(("{", "[")):
             candidates.append(line)
             break
-    # 4. 原始文本兜底
+    # 4. JSON 代码块（```json ... ```）
+    for m in re.finditer(r"```(?:json)?\s*\n([\s\S]*?)```", raw):
+        candidates.append(m.group(1).strip())
+    # 5. ## Response Structure 之后紧跟的 JSON 块或代码块
+    m = re.search(r"##\s*Response Structure\s*\n+(?:```(?:json)?\s*\n)?([\s\S]+?)(?:\n```|$)", raw)
+    if m:
+        candidates.append(m.group(1).strip())
+    # 6. 原始文本兜底
     candidates.append(raw.strip())
     return candidates
 
