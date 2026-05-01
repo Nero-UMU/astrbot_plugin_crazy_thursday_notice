@@ -11,7 +11,17 @@
   },
   "message": {
     "type": "string",
-    "description": "推送的疯狂星期四文案",
+    "description": "推送的疯狂星期四文案（菜单会自动附在后面）",
     "default": "今天是肯德基疯狂星期四！V我50！"
+  },
+  "lat": {
+    "type": "float",
+    "description": "用于定位最近 KFC 门店的纬度",
+    "default": 39.9042
+  },
+  "lng": {
+    "type": "float",
+    "description": "用于定位最近 KFC 门店的经度",
+    "default": 116.4074
   }
 }

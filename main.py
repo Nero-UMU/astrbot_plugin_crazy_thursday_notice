@@ -3,8 +3,10 @@ from astrbot.api.star import Context, Star, register
 from astrbot.api import logger
 from astrbot.api.message_components import Plain
 
+from .kfc_scraper import KFCMenuFetcher
 
-@register("astrbot_plugin_crazy_thursday_notice", "NeroUMU", "每到周四自动向 QQ 群推送疯狂星期四提醒", "1.0.0")
+
+@register("astrbot_plugin_crazy_thursday_notice", "NeroUMU", "每到周四自动向 QQ 群推送疯狂星期四提醒及菜单", "1.0.0")
 class CrazyThursdayPlugin(Star):
     def __init__(self, context: Context, config: dict | None = None):
         super().__init__(context)
@@ -17,6 +19,8 @@ class CrazyThursdayPlugin(Star):
         self.cron_expression: str = self.config.get("cron_expression", "0 12 * * 4")
         self.message_text: str = self.config.get("message", "今天是肯德基疯狂星期四！V我50！")
         self.platform_id: str = self._resolve_platform_id(self.config.get("platform_id", ""))
+        self.lat: float = float(self.config.get("lat", 39.9042))
+        self.lng: float = float(self.config.get("lng", 116.4074))
 
         if not self.group_ids:
             logger.warning("[疯狂星期四] 未配置群号，定时推送不会执行。请在插件配置中填写 group_ids。")
@@ -39,8 +43,19 @@ class CrazyThursdayPlugin(Star):
                 return platform.meta().id
         return "aiocqhttp"
 
+    async def _build_message(self) -> str:
+        text = self.message_text
+        try:
+            async with KFCMenuFetcher(lat=self.lat, lng=self.lng) as fetcher:
+                menu_text = await fetcher.get_menu_text()
+            text = f"{text}\n\n📋 今日菜单：\n{menu_text}"
+        except Exception as e:
+            logger.warning(f"[疯狂星期四] 获取菜单失败，将只发送文案：{e}")
+        return text
+
     async def _push_notice(self):
-        message = MessageChain([Plain(self.message_text)])
+        content = await self._build_message()
+        message = MessageChain([Plain(content)])
         for group_id in self.group_ids:
             session = f"{self.platform_id}:GroupMessage:{group_id}"
             try:
