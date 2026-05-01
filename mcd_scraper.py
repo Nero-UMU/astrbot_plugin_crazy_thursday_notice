@@ -148,41 +148,82 @@ def _parse_mcp_response(resp: httpx.Response) -> dict:
 
 
 def _extract_data(raw: str, expected_type: type):
-    """从 MCP 响应文本中提取 data 字段，返回 expected_type 类型的值，否则 None。"""
+    """从 MCP 响应文本中提取嵌套的 data 字段，返回 expected_type 类型的值。
+
+    遍历 _json_candidates 返回的每个 JSON 片段，优先匹配带 success/code/data
+    的标准 API 响应包，其次再尝试其他结构。
+    """
     for candidate in _json_candidates(raw):
         try:
             obj = json.loads(candidate)
-            payload = obj.get("data") if isinstance(obj, dict) else None
+        except (json.JSONDecodeError, TypeError):
+            continue
+        if not isinstance(obj, dict):
+            if isinstance(obj, expected_type):
+                return obj
+            continue
+        # 标准 API 响应包：{"success": true, "data": ...}
+        if "data" in obj and "success" in obj:
+            payload = obj["data"]
             if isinstance(payload, expected_type):
                 return payload
-        except (json.JSONDecodeError, AttributeError):
-            pass
+        # 直接匹配：{"categories": [...], "meals": {...}} 等裸结构
+        if isinstance(obj, expected_type):
+            return obj
     return None
 
 
 def _json_candidates(raw: str) -> list[str]:
-    candidates = []
-    # 1. 【{json}】 包装格式
+    """从各种可能的格式中提取 JSON 候选字符串。"""
+    candidates: list[str] = []
+
+    # 1. JSON 代码块（```json / ``` 包裹）
+    for m in re.finditer(r"```(?:json)?[\t ]*\n([\s\S]*?)```", raw):
+        candidates.append(m.group(1).strip())
+
+    # 2. 【{json}】 中文括号包裹（旧格式）
     m = re.search(r"【(\{.+\})】", raw, re.DOTALL)
     if m:
         candidates.append(m.group(1))
-    # 2. ## Original Response 之后的内容（MCP 工具描述 + 原始响应格式）
-    m = re.search(r"##\s*Original Response\s*\n+([\s\S]+)", raw)
-    if m:
+
+    # 3. 独立 JSON 行 —— 紧跟某个 Markdown 小节标题后的纯 JSON
+    for m in re.finditer(
+        r"#+\s*(?:Original\s*Response|Response\s*Structure|原始响应|响应数据|响应示例|响应内容)[\t ]*\n+([\s\S]+?)(?=\n#+ |\n```|\Z)",
+        raw,
+        re.IGNORECASE,
+    ):
         candidates.append(m.group(1).strip())
-    # 3. 末尾以 { 或 [ 开头的行（内联 JSON）
-    for line in reversed(raw.splitlines()):
-        line = line.strip()
-        if line.startswith(("{", "[")):
+
+    # 4. 所有以 { 或 [ 开头、以 } 或 ] 结尾的完整 JSON 行组
+    for m in re.finditer(r"((?:^|\n)[\{\[][^\n\{\[\}\]\]\r]*[\}\]](?=\n|$))", raw):
+        line = m.group(1).strip()
+        if line:
             candidates.append(line)
-            break
-    # 4. JSON 代码块（```json ... ```）
-    for m in re.finditer(r"```(?:json)?\s*\n([\s\S]*?)```", raw):
-        candidates.append(m.group(1).strip())
-    # 5. ## Response Structure 之后紧跟的 JSON 块或代码块
-    m = re.search(r"##\s*Response Structure\s*\n+(?:```(?:json)?\s*\n)?([\s\S]+?)(?:\n```|$)", raw)
-    if m:
-        candidates.append(m.group(1).strip())
+
+    # 5. 从后往前找第一个以 { / [ 开头且匹配闭合的段落
+    brace_count = 0
+    start = -1
+    for i in range(len(raw) - 1, -1, -1):
+        ch = raw[i]
+        if ch == "}":
+            brace_count += 1
+            if start == -1:
+                start = i
+        elif ch == "{":
+            brace_count -= 1
+            if brace_count == 0 and start != -1:
+                candidates.append(raw[i : start + 1])
+                start = -1
+        elif ch == "]":
+            brace_count += 1
+            if start == -1:
+                start = i
+        elif ch == "[":
+            brace_count -= 1
+            if brace_count == 0 and start != -1:
+                candidates.append(raw[i : start + 1])
+                start = -1
+
     # 6. 原始文本兜底
     candidates.append(raw.strip())
     return candidates
