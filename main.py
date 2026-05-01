@@ -21,7 +21,7 @@ class CrazyThursdayPlugin(Star):
         self.push_times: list[str] = self.config.get("push_times", ["12:00"])
         self.message_text: str = self.config.get("message", "今天是肯德基疯狂星期四！V我50！")
         self.platform_id: str = self._resolve_platform_id(self.config.get("platform_id", ""))
-        self.city: str = self.config.get("city", "上海")
+        self.city: str = self.config.get("city", "上海市")
         self.mcd_token: str = self.config.get("mcd_token", "")
         self.mcd_store_code: str = self.config.get("mcd_store_code", "")
         self.mcd_order_type: int = int(self.config.get("mcd_order_type", "1") or 1)
