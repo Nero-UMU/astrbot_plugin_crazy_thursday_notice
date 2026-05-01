@@ -33,8 +33,8 @@ class MCDClient:
         raw = await self._call_tool(tool["name"])
         return _parse_coupon_text(raw)
 
-    async def find_stores(self, city: str, keyword: str | None = None) -> list[dict]:
-        """查询城市附近门店，返回 {storeCode, storeName, address, distance} 列表。"""
+    async def find_stores(self, city: str, keyword: str | None = None) -> tuple[list[dict], str]:
+        """查询城市附近门店。返回 (stores, raw_text)，stores 解析失败时为空列表。"""
         tool = await self._find_tool(["store", "restaurant", "门店", "附近", "餐厅"])
         if not tool:
             raise RuntimeError(f"未找到门店查询工具，可用工具：{await self.list_tools()}")
@@ -45,7 +45,7 @@ class MCDClient:
             "keyword": keyword or city,
         })
         result = _extract_data(raw, list)
-        return result if result is not None else []
+        return (result if result is not None else []), raw
 
     async def get_menu(self, store_code: str, order_type: int = 1) -> dict:
         """返回菜单 {categories: [...], meals: {code: {name, currentPrice}}}。"""

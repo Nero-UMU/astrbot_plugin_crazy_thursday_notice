@@ -188,6 +188,19 @@ class CrazyThursdayPlugin(Star):
         except Exception as e:
             yield event.plain_result(f"获取优惠券失败：{e}")
 
+    @filter.command("mcdtools")
+    async def mcd_tools(self, event: AstrMessageEvent):
+        """列出麦当劳 MCP 可用工具（调试用）"""
+        if err := self._check_mcd_token(event):
+            yield err
+            return
+        try:
+            async with MCDClient(token=self.mcd_token) as client:
+                tools = await client.list_tools()
+            yield event.plain_result("可用工具：\n" + "\n".join(f"  {t}" for t in tools))
+        except Exception as e:
+            yield event.plain_result(f"获取工具列表失败：{e}")
+
     @filter.command("mcdstore")
     async def mcd_store(self, event: AstrMessageEvent):
         """查询附近麦当劳门店，可附城市名：/mcdstore 北京市"""
@@ -197,16 +210,17 @@ class CrazyThursdayPlugin(Star):
         city = _cmd_arg(event.message_str) or self.city
         try:
             async with MCDClient(token=self.mcd_token) as client:
-                stores = await client.find_stores(city)
-            if not stores:
-                yield event.plain_result(f"未找到 {city} 附近的麦当劳门店。")
-                return
-            lines = [f"📍 {city} 附近麦当劳门店：\n"]
-            for s in stores:
-                dist = f"  {s.get('distance', '')}" if s.get("distance") else ""
-                lines.append(f"  [{s.get('storeCode', '')}] {s.get('storeName', '')}  {s.get('address', '')}{dist}")
-            lines.append("\n使用 /mcdmenu <门店编号> 查看菜单。")
-            yield event.plain_result("\n".join(lines))
+                stores, raw = await client.find_stores(city)
+            if stores:
+                lines = [f"📍 {city} 附近麦当劳门店：\n"]
+                for s in stores:
+                    dist = f"  {s.get('distance', '')}" if s.get("distance") else ""
+                    lines.append(f"  [{s.get('storeCode', '')}] {s.get('storeName', '')}  {s.get('address', '')}{dist}")
+                lines.append("\n使用 /mcdmenu <门店编号> 查看菜单。")
+                yield event.plain_result("\n".join(lines))
+            else:
+                # 解析失败，直接把原始文本返回给用户
+                yield event.plain_result(raw or f"未找到 {city} 附近的麦当劳门店。")
         except Exception as e:
             yield event.plain_result(f"查询门店失败：{e}")
 
