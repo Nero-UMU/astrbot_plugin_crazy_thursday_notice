@@ -1,0 +1,222 @@
+2. 快速开始
+
+    下面介绍如何将 MCP Server 接入到 MCP Client 中，开始使用 MCP 功能。
+    麦当劳中国提供了远程托管的 MCP Server，用户只需在 MCP Client 中配置接入地址和 MCP Token 即可使用。
+
+2.1 接入地址
+
+    服务器接入地址：https://mcp.mcd.cn
+
+2.2 传输协议与安全
+
+    使用 Streamable HTTP 协议接入
+    为了识别用户身份和权限，需要在请求头中携带 Authorization 字段，格式如下：
+
+Authorization: Bearer YOUR_MCP_TOKEN
+
+2.3 MCP 配置 JSON 示例：
+
+    为了方便使用，我们提供了JSON 配置示例。
+    复制下面的配置，替换 YOUR_MCP_TOKEN 为实际 MCP Token，粘贴到 MCP Client 的 MCP Server 配置中即可。
+
+{
+  "mcpServers": {
+    "mcd-mcp": {
+      "type": "streamablehttp",
+      "url": "https://mcp.mcd.cn",
+      "headers": {
+        "Authorization": "Bearer YOUR_MCP_TOKEN"
+      }
+    }
+  }
+}
+
+4.2.4 查询附近可用门店
+
+描述：
+
+    查询用户提供地址附近的麦当劳餐厅。当用户希望想要到店取餐、堂食或希望寻找麦当劳餐厅时可以使用该工具查找位置附近的麦当劳门店
+
+入参：
+name 	description
+searchType 	必填，1：查询收藏，2：按位置搜索，默认选中1
+beType 	必填，默认1，到店
+city 	城市，仅在searchType=2时必填
+keyword 	位置关键词，仅在searchType=2时必填
+
+响应内容：
+
+示例：
+
+{
+    "success": true,
+    "code": 200,
+    "message": "请求成功",
+    "datetime": "2026-02-09 14:44:29",
+    "traceId": "341e2dce2af4a61497b52097125a8a77",
+    "data": [
+        {
+            "storeCode": "1", // 门店编码
+            "storeName": "xxxx", // 门店名 
+            "beCode": "" , // beCode
+            "address": "" // 门店地址
+            "distance": "" , // 搜索位置距离门店位置的距离
+        },
+        {
+            "storeCode": "2", // 门店编码
+            "storeName": "xxxx", // 门店名 
+            "beCode": "" , // beCode
+            "address": "" // 门店地址
+            "distance": "" , // 搜索位置距离门店位置的距离
+        }
+    ]
+}
+
+
+
+4.2.6 查询当前可售卖的餐品列表
+
+描述：
+
+    查询当前门店可售餐品列表。当用户希望获取门店菜单或者点单时，可以调用这个工具获取当前门店可售的餐品。
+
+入参：
+name 	description
+storeCode 	门店编码，必填
+beCode 	BE编码
+orderType 	必填，到店：orderType=1，外送：orderType=2
+
+    到店取餐场景: orderType=1 && beCode=null
+    外送场景: orderType=2 && beCode 为 delivery-query-address 中的 beCode
+
+响应内容：
+
+示例：
+
+{
+  "success": true,
+  "code": 200,
+  "message": "请求成功",
+  "datetime": "2026-02-09 09:47:35",
+  "traceId": "4b2b4de1d772dad2dc498597c65cf3af",
+  "data": {
+    "categories": [
+      {
+        "name": "人气热卖",
+        "meals": [
+          {
+            "code": "9900008139",
+            "tags": []
+          },
+          {
+            "code": "9900008169",
+            "tags": []
+          },
+          {
+            "code": "920215",
+            "tags": [
+              "第二份半价"
+            ]
+          }
+        ],
+        "daypart": 8
+      }
+    ],
+    "meals": {
+      "920215": {
+        "name": "培根安格斯厚牛堡大套餐",
+        "currentPrice": "55.5"
+      },
+      "9900008139": {
+        "name": "DC套餐测试",
+        "currentPrice": "14"
+      },
+      "9900008169": {
+        "name": "双层深海鳕鱼堡",
+        "currentPrice": "25"
+      }
+    }
+  }
+}
+
+4.2.7 查询餐品详情
+
+描述：
+
+    根据餐品列表中返回的餐品编码，可以查看套餐的组成等信息。当用户需要查看餐品详情时使用此工具。
+
+重点注意：
+
+    当前版本（v1.0.3）暂不支持更换套餐内的单品，该功能将在后续版本中提供。
+
+入参：
+name 	description
+code 	餐品编码，必填
+storeCode 	门店 code
+beCode 	BE编码
+orderType 	必填
+
+    到店取餐场景: orderType=1 && beCode=null
+    外送场景: orderType=2 && beCode 为 delivery-query-address 中的 beCode
+
+响应内容：
+
+示例：
+
+{
+  "success": true,
+  "code": 200,
+  "message": "请求成功",
+  "datetime": "2026-02-09 14:37:19",
+  "traceId": "21de60d22eea026cae0428f714359e2c",
+  "data": {
+    "code": "9900008139",
+    "price": "14",
+    "rounds": [
+      {
+        "id": 1,
+        "name": "汉堡包",
+        "quantity": 1,
+        "maxQuantity": 1,
+        "minQuantity": 1,
+        "choices": [
+          {
+            "code": "1000",
+            "name": "汉堡包-pool1",
+            "quantity": 1,
+            "maxQuantity": -1
+          }
+        ]
+      }
+    ]
+  }
+}
+
+4.4 麦麦省领券
+4.4.1 麦麦省券列表查询
+
+描述：
+
+    查询用户当前可领取的麦麦省的优惠券列表。返回券名称、图片、状态和促销标签。当用户询问有什么优惠、可以领什么券时使用此工具。
+
+入参：
+
+    无需入参
+
+响应内容：
+
+示例：
+
+### 麦麦省优惠券列表：
+- 优惠券标题：11.9元麦乐鸡 \
+  状态：已领取 \
+  优惠券图片：\
+    <img src="https://img.mcd.cn/cms/images/077b86c9268d33a0.png" height="auto" width="300">
+- 优惠券标题：9.9元薯你最甜 \
+  状态：未领取 \
+  优惠券图片：\
+    <img src="https://img.mcd.cn/cms/images/0853e0f8882dc66e.png" height="auto" width="300">
+- 优惠券标题：北非蛋风味麦满分 \
+  状态：不可领取 \
+  优惠券图片：\
+    <img src="https://img.mcd.cn/cms/images/6714e5753b475d96.png" height="auto" width="300">
