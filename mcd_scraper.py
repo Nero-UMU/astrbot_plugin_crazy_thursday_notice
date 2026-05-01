@@ -49,16 +49,25 @@ class MCDClient:
         result = _extract_data(raw, list)
         return (result if result is not None else []), raw
 
-    async def get_menu(self, store_code: str, order_type: int = 1) -> dict:
-        """返回菜单 {categories: [...], meals: {code: {name, currentPrice}}}。"""
+    async def get_menu_raw(self, store_code: str, order_type: int = 1) -> str:
+        """返回 query-meals 的原始响应文本，用于调试。"""
         await self._ensure_session()
-        raw = await self._call_tool(_TOOL_MENU, {
+        return await self._call_tool(_TOOL_MENU, {
             "storeCode": store_code,
             "orderType": order_type,
         })
+
+    async def get_menu(self, store_code: str, order_type: int = 1) -> dict:
+        """返回菜单 {categories: [...], meals: {code: {name, currentPrice}}}。"""
+        raw = await self.get_menu_raw(store_code, order_type)
+        return self.parse_menu(raw)
+
+    @staticmethod
+    def parse_menu(raw: str) -> dict:
+        """从原始响应文本解析菜单数据，失败则抛出 RuntimeError。"""
         result = _extract_data(raw, dict)
         if not result:
-            raise RuntimeError(f"菜单数据解析失败，原始响应：{raw[:300]}")
+            raise RuntimeError(f"菜单数据解析失败，原始响应：{raw}")
         return result
 
     async def get_meal_detail(self, code: str, store_code: str, order_type: int = 1) -> dict:

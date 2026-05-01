@@ -239,10 +239,12 @@ class CrazyThursdayPlugin(Star):
             return
         try:
             async with MCDClient(token=self.mcd_token) as client:
-                menu = await client.get_menu(store_code, self.mcd_order_type)
+                raw = await client.get_menu_raw(store_code, self.mcd_order_type)
+                menu = client.parse_menu(raw)
             store_name = ""
             _save_menu_cache(store_code, store_name, self.mcd_order_type, menu)
-            yield event.plain_result(_format_menu(store_code, store_name, self.mcd_order_type, menu))
+            formatted = _format_menu(store_code, store_name, self.mcd_order_type, menu)
+            yield event.plain_result(f"=== 原始响应 ===\n{raw}\n\n=== 解析结果 ===\n{formatted}")
         except Exception as e:
             yield event.plain_result(f"获取菜单失败：{e}")
 
