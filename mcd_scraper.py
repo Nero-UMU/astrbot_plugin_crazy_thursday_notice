@@ -56,6 +56,27 @@ class MCDMenuFetcher:
         raw = await self._call_tool(tool["name"])
         return _parse_to_plain(raw)
 
+    async def find_stores(self, city: str, keyword: str | None = None) -> list[dict]:
+        """查询城市附近麦当劳门店列表。"""
+        tool = await self._find_tool(["store", "restaurant", "nearby", "门店", "餐厅", "附近"])
+        if not tool:
+            raise RuntimeError(await self._no_tool_msg("门店"))
+        args = {
+            "searchType": 2,
+            "beType": 1,
+            "city": city,
+            "keyword": keyword or city,
+        }
+        raw = await self._call_tool(tool["name"], args)
+        return _parse_stores(raw)
+
+    async def get_nearest_store_code(self, city: str) -> str:
+        """返回城市附近第一家门店的 storeCode。"""
+        stores = await self.find_stores(city)
+        if not stores:
+            raise RuntimeError(f"未找到 {city} 附近的麦当劳门店")
+        return stores[0]["storeCode"]
+
     async def list_tool_names(self) -> list[str]:
         """列出所有可用工具名（调试用）。"""
         await self._ensure_initialized()
@@ -210,7 +231,16 @@ def _parse_markdown_list(raw: str) -> str:
     current: dict[str, str] = {}
     for line in raw.splitlines():
         line = line.rstrip().rstrip("\\").strip()
-        if re.match(r"<[^>]+>", line) or line.startswith("【"):
+        if re.match(r"^<[^>]+>$", line):
+            continue
+        line = re.sub(r"<[^>]+>", "", line).strip()
+        if not line:
+            continue
+        if line.startswith("【") and line.endswith("】"):
+            if current:
+                lines.append(_fmt_kv(current))
+                current = {}
+            lines.append(f"\n{line}")
             continue
         m = re.match(r"^-\s*(.+?)：(.+)$", line)
         if m:
@@ -237,6 +267,25 @@ def _fmt_kv(item: dict[str, str]) -> str:
     name = item.get("优惠券标题") or item.get("名称") or item.get("商品名") or ""
     extra = item.get("状态") or item.get("价格") or item.get("售价") or ""
     return f"  {name}  {extra}".rstrip()
+
+
+def _parse_stores(raw: str) -> list[dict]:
+    """解析门店列表响应，返回 storeCode/storeName/address/distance 列表。"""
+    m = re.search(r"【(\{.+\})】", raw, re.DOTALL)
+    if m:
+        try:
+            payload = json.loads(m.group(1)).get("data")
+            if isinstance(payload, list):
+                return payload
+        except (json.JSONDecodeError, KeyError):
+            pass
+    try:
+        payload = json.loads(raw).get("data")
+        if isinstance(payload, list):
+            return payload
+    except (json.JSONDecodeError, TypeError):
+        pass
+    return []
 
 
 def _parse_mcp_response(resp: httpx.Response) -> dict:

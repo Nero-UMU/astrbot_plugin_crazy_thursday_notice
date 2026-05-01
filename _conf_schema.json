@@ -28,7 +28,7 @@
   },
   "mcd_store_code": {
     "type": "string",
-    "description": "麦当劳门店编号（用于查询菜单和餐品详情）",
+    "description": "麦当劳门店编号（留空则自动根据城市查找）",
     "default": ""
   },
   "mcd_order_type": {

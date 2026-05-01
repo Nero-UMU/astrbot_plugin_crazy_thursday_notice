@@ -76,18 +76,41 @@ class CrazyThursdayPlugin(Star):
             except Exception as e:
                 logger.error(f"[疯狂星期四] 向群 {group_id} 发送出错：{e}")
 
-    @filter.command("mcdmenu")
-    async def mcd_menu(self, event: AstrMessageEvent):
-        """获取麦当劳菜单（需在后台配置 mcd_token 和 mcd_store_code）"""
+    async def _get_mcd_store_code(self, fetcher: MCDMenuFetcher) -> str:
+        if self.mcd_store_code:
+            return self.mcd_store_code
+        return await fetcher.get_nearest_store_code(self.city)
+
+    @filter.command("mcdstores")
+    async def mcd_stores(self, event: AstrMessageEvent):
+        """查询附近麦当劳门店列表"""
         if not self.mcd_token:
             yield event.plain_result("未配置麦当劳 MCP Token，请在插件配置中填写 mcd_token。")
             return
-        if not self.mcd_store_code:
-            yield event.plain_result("未配置麦当劳门店编号，请在插件配置中填写 mcd_store_code。")
+        try:
+            async with MCDMenuFetcher(token=self.mcd_token) as fetcher:
+                stores = await fetcher.find_stores(self.city)
+            if not stores:
+                yield event.plain_result(f"未找到 {self.city} 附近的麦当劳门店。")
+                return
+            lines = [f"📍 {self.city} 附近门店："]
+            for s in stores:
+                dist = f"  {s.get('distance', '')}" if s.get("distance") else ""
+                lines.append(f"  [{s.get('storeCode', '')}] {s.get('storeName', '')}  {s.get('address', '')}{dist}")
+            yield event.plain_result("\n".join(lines))
+        except Exception as e:
+            yield event.plain_result(f"查询门店失败：{e}")
+
+    @filter.command("mcdmenu")
+    async def mcd_menu(self, event: AstrMessageEvent):
+        """获取麦当劳菜单（需在后台配置 mcd_token）"""
+        if not self.mcd_token:
+            yield event.plain_result("未配置麦当劳 MCP Token，请在插件配置中填写 mcd_token。")
             return
         try:
             async with MCDMenuFetcher(token=self.mcd_token) as fetcher:
-                text = await fetcher.get_menu_text(self.mcd_store_code, self.mcd_order_type)
+                store_code = await self._get_mcd_store_code(fetcher)
+                text = await fetcher.get_menu_text(store_code, self.mcd_order_type)
             yield event.plain_result(text)
         except Exception as e:
             yield event.plain_result(f"获取麦当劳菜单失败：{e}")
@@ -98,9 +121,6 @@ class CrazyThursdayPlugin(Star):
         if not self.mcd_token:
             yield event.plain_result("未配置麦当劳 MCP Token，请在插件配置中填写 mcd_token。")
             return
-        if not self.mcd_store_code:
-            yield event.plain_result("未配置麦当劳门店编号，请在插件配置中填写 mcd_store_code。")
-            return
         args = event.message_str.strip().split(maxsplit=1)
         if len(args) < 2 or not args[1].strip():
             yield event.plain_result("请提供餐品编号，用法：/mcddetail <餐品编号>")
@@ -108,7 +128,8 @@ class CrazyThursdayPlugin(Star):
         code = args[1].strip()
         try:
             async with MCDMenuFetcher(token=self.mcd_token) as fetcher:
-                text = await fetcher.get_meal_detail_text(code, self.mcd_store_code, self.mcd_order_type)
+                store_code = await self._get_mcd_store_code(fetcher)
+                text = await fetcher.get_meal_detail_text(code, store_code, self.mcd_order_type)
             yield event.plain_result(text)
         except Exception as e:
             yield event.plain_result(f"获取餐品详情失败：{e}")
