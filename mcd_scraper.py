@@ -162,9 +162,21 @@ def _extract_data(raw: str, expected_type: type):
 
 def _json_candidates(raw: str) -> list[str]:
     candidates = []
+    # 1. 【{json}】 包装格式
     m = re.search(r"【(\{.+\})】", raw, re.DOTALL)
     if m:
         candidates.append(m.group(1))
+    # 2. ## Original Response 之后的内容（MCP 工具描述 + 原始响应格式）
+    m = re.search(r"##\s*Original Response\s*\n+([\s\S]+)", raw)
+    if m:
+        candidates.append(m.group(1).strip())
+    # 3. 末尾以 { 或 [ 开头的行（内联 JSON）
+    for line in reversed(raw.splitlines()):
+        line = line.strip()
+        if line.startswith(("{", "[")):
+            candidates.append(line)
+            break
+    # 4. 原始文本兜底
     candidates.append(raw.strip())
     return candidates
 
