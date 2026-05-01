@@ -27,8 +27,8 @@ class CrazyThursdayPlugin(Star):
             logger.warning("[疯狂星期四] 未配置群号，定时推送不会执行。请在插件配置中填写 group_ids。")
             return
 
-        _day_map = {"周日": "0", "周一": "1", "周二": "2", "周三": "3", "周四": "4", "周五": "5", "周六": "6"}
-        days_str = ",".join(_day_map[d] for d in self.push_days if d in _day_map) or "4"
+        _day_map = {"周日": "sun", "周一": "mon", "周二": "tue", "周三": "wed", "周四": "thu", "周五": "fri", "周六": "sat"}
+        days_str = ",".join(_day_map[d] for d in self.push_days if d in _day_map) or "thu"
         hours_str = ",".join(h.lstrip("0") or "0" for h in self.push_hours) or "12"
         minutes_str = ",".join(m.lstrip("0") or "0" for m in self.push_minutes) or "0"
         cron_expression = f"{minutes_str} {hours_str} * * {days_str}"
