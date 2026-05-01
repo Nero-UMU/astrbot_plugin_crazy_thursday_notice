@@ -4,6 +4,7 @@ from astrbot.api import logger
 from astrbot.api.message_components import Plain
 
 from .kfc_scraper import KFCMenuFetcher
+from .mcd_scraper import MCDMenuFetcher
 
 
 @register("astrbot_plugin_crazy_thursday_notice", "NeroUMU", "每到周四自动向 QQ 群推送疯狂星期四提醒及菜单", "1.0.0")
@@ -21,6 +22,7 @@ class CrazyThursdayPlugin(Star):
         self.message_text: str = self.config.get("message", "今天是肯德基疯狂星期四！V我50！")
         self.platform_id: str = self._resolve_platform_id(self.config.get("platform_id", ""))
         self.city: str = self.config.get("city", "上海")
+        self.mcd_token: str = self.config.get("mcd_token", "")
 
         if not self.group_ids:
             logger.warning("[疯狂星期四] 未配置群号，定时推送不会执行。请在插件配置中填写 group_ids。")
@@ -71,6 +73,19 @@ class CrazyThursdayPlugin(Star):
                     logger.warning(f"[疯狂星期四] 向群 {group_id} 发送失败：未找到平台 {self.platform_id}。")
             except Exception as e:
                 logger.error(f"[疯狂星期四] 向群 {group_id} 发送出错：{e}")
+
+    @filter.command("mcdmenu")
+    async def mcd_menu(self, event: AstrMessageEvent):
+        """获取麦当劳菜单（需在后台配置 mcd_token）"""
+        if not self.mcd_token:
+            yield event.plain_result("未配置麦当劳 MCP Token，请在插件配置中填写 mcd_token。")
+            return
+        try:
+            async with MCDMenuFetcher(token=self.mcd_token) as fetcher:
+                menu_text = await fetcher.get_menu_text()
+            yield event.plain_result(menu_text)
+        except Exception as e:
+            yield event.plain_result(f"获取麦当劳菜单失败：{e}")
 
     @filter.command("kfctest")
     async def kfc_test(self, event: AstrMessageEvent):

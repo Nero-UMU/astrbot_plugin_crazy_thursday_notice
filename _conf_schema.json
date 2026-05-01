@@ -21,6 +21,11 @@
     "description": "推送的文案（菜单会自动附在后面）",
     "default": "今天是肯德基疯狂星期四！V我50！"
   },
+  "mcd_token": {
+    "type": "string",
+    "description": "麦当劳 MCP Token（在 open.mcd.cn 注册后获取）",
+    "default": ""
+  },
   "city": {
     "type": "string",
     "description": "定位城市，用于拉取附近 KFC 菜单",
