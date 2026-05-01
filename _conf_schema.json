@@ -23,24 +23,8 @@
   },
   "city": {
     "type": "string",
-    "description": "定位城市，用于拉取附近 KFC/麦当劳门店",
+    "description": "定位城市，用于拉取附近 KFC 门店",
     "default": "上海市",
     "options": ["上海市", "北京市", "广州市", "深圳市", "杭州市", "成都市", "武汉市", "南京市", "西安市", "重庆市", "天津市", "苏州市", "郑州市", "长沙市", "青岛市", "厦门市", "南昌市", "合肥市", "哈尔滨市", "沈阳市"]
-  },
-  "mcd_token": {
-    "type": "string",
-    "description": "麦当劳 MCP Token（在 open.mcd.cn 注册后获取）",
-    "default": ""
-  },
-  "mcd_store_code": {
-    "type": "string",
-    "description": "默认麦当劳门店编号（留空则每次用 /mcdmenu 时需手动指定）",
-    "default": ""
-  },
-  "mcd_order_type": {
-    "type": "string",
-    "description": "点单类型：1=到店取餐，2=外送",
-    "default": "1",
-    "options": ["1", "2"]
   }
 }
