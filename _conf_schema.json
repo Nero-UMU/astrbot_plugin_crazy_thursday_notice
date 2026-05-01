@@ -4,10 +4,11 @@
     "description": "要推送消息的 QQ 群号列表",
     "default": []
   },
-  "cron_expression": {
+  "push_time": {
     "type": "string",
-    "description": "推送时间的 cron 表达式，默认每周四中午 12:00",
-    "default": "0 12 * * 4"
+    "description": "每周四推送时间",
+    "default": "12:00",
+    "options": ["08:00", "10:00", "11:00", "12:00", "14:00", "16:00", "18:00", "20:00", "22:00"]
   },
   "message": {
     "type": "string",
@@ -16,18 +17,8 @@
   },
   "city": {
     "type": "string",
-    "description": "定位城市，用于拉取附近 KFC 菜单。填写后 lat/lng 无效",
+    "description": "定位城市，用于拉取附近 KFC 菜单",
     "default": "上海",
     "options": ["上海", "北京", "广州", "深圳", "杭州", "成都", "武汉", "南京", "西安", "重庆", "天津", "苏州", "郑州", "长沙", "青岛", "厦门", "南昌", "合肥", "哈尔滨", "沈阳"]
-  },
-  "lat": {
-    "type": "float",
-    "description": "纬度（city 留空时才生效）",
-    "default": 0.0
-  },
-  "lng": {
-    "type": "float",
-    "description": "经度（city 留空时才生效）",
-    "default": 0.0
   }
 }

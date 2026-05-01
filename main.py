@@ -16,20 +16,21 @@ class CrazyThursdayPlugin(Star):
 
     async def initialize(self):
         self.group_ids: list[str] = self.config.get("group_ids", [])
-        self.cron_expression: str = self.config.get("cron_expression", "0 12 * * 4")
+        self.push_time: str = self.config.get("push_time", "12:00")
         self.message_text: str = self.config.get("message", "今天是肯德基疯狂星期四！V我50！")
         self.platform_id: str = self._resolve_platform_id(self.config.get("platform_id", ""))
         self.city: str = self.config.get("city", "上海")
-        self.lat: float = float(self.config.get("lat", 0))
-        self.lng: float = float(self.config.get("lng", 0))
 
         if not self.group_ids:
             logger.warning("[疯狂星期四] 未配置群号，定时推送不会执行。请在插件配置中填写 group_ids。")
             return
 
+        hour, minute = self.push_time.split(":")
+        cron_expression = f"{minute} {hour} * * 4"
+
         self._cron_job = await self.context.cron_manager.add_basic_job(
             name="crazy_thursday_notice",
-            cron_expression=self.cron_expression,
+            cron_expression=cron_expression,
             handler=self._push_notice,
             description="每周四疯狂星期四提醒",
             timezone="Asia/Shanghai",
@@ -47,8 +48,7 @@ class CrazyThursdayPlugin(Star):
     async def _build_message(self) -> str:
         text = self.message_text
         try:
-            fetcher_kwargs = {"city": self.city} if self.city else {"lat": self.lat, "lng": self.lng}
-            async with KFCMenuFetcher(**fetcher_kwargs) as fetcher:
+            async with KFCMenuFetcher(city=self.city) as fetcher:
                 menu_text = await fetcher.get_menu_text()
             text = f"{text}\n\n📋 今日菜单：\n{menu_text}"
         except Exception as e:
@@ -74,6 +74,16 @@ class CrazyThursdayPlugin(Star):
         """手动触发一次疯狂星期四推送（用于测试）"""
         await self._push_notice()
         yield event.plain_result("疯狂星期四推送已触发。")
+
+    @filter.command("kfc menu")
+    async def kfc_menu(self, event: AstrMessageEvent):
+        """获取当前 KFC 菜单"""
+        try:
+            async with KFCMenuFetcher(city=self.city) as fetcher:
+                menu_text = await fetcher.get_menu_text()
+            yield event.plain_result(menu_text)
+        except Exception as e:
+            yield event.plain_result(f"获取菜单失败：{e}")
 
     async def terminate(self):
         if self._cron_job:
