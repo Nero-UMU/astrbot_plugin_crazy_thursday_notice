@@ -14,14 +14,20 @@
     "description": "推送的疯狂星期四文案（菜单会自动附在后面）",
     "default": "今天是肯德基疯狂星期四！V我50！"
   },
+  "city": {
+    "type": "string",
+    "description": "定位城市，用于拉取附近 KFC 菜单。填写后 lat/lng 无效",
+    "default": "上海",
+    "options": ["上海", "北京", "广州", "深圳", "杭州", "成都", "武汉", "南京", "西安", "重庆", "天津", "苏州", "郑州", "长沙", "青岛", "厦门", "南昌", "合肥", "哈尔滨", "沈阳"]
+  },
   "lat": {
     "type": "float",
-    "description": "用于定位最近 KFC 门店的纬度",
-    "default": 39.9042
+    "description": "纬度（city 留空时才生效）",
+    "default": 0.0
   },
   "lng": {
     "type": "float",
-    "description": "用于定位最近 KFC 门店的经度",
-    "default": 116.4074
+    "description": "经度（city 留空时才生效）",
+    "default": 0.0
   }
 }

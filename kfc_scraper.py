@@ -9,6 +9,30 @@ _IMAGE_BASE = "https://www.kfc.com.cn"
 _CLIENT_VERSION = "v6.306(4f1aca49)"
 _FVERSION = "251029"
 
+# 城市名 → (lat, lng)
+CITY_COORDS: dict[str, tuple[float, float]] = {
+    "上海": (31.2304, 121.4737),
+    "北京": (39.9042, 116.4074),
+    "广州": (23.1291, 113.2644),
+    "深圳": (22.5431, 114.0579),
+    "杭州": (30.2741, 120.1551),
+    "成都": (30.5728, 104.0668),
+    "武汉": (30.5928, 114.3055),
+    "南京": (32.0603, 118.7969),
+    "西安": (34.3416, 108.9398),
+    "重庆": (29.5630, 106.5516),
+    "天津": (39.3434, 117.3616),
+    "苏州": (31.2990, 120.5853),
+    "郑州": (34.7466, 113.6254),
+    "长沙": (28.2282, 112.9388),
+    "青岛": (36.0671, 120.3826),
+    "厦门": (24.4798, 118.0894),
+    "南昌": (28.6820, 115.8579),
+    "合肥": (31.8206, 117.2272),
+    "哈尔滨": (45.8038, 126.5349),
+    "沈阳": (41.8057, 123.4315),
+}
+
 
 @dataclass
 class MenuItem:
@@ -37,7 +61,17 @@ class KFCMenuFetcher:
             text = await fetcher.get_menu_text()
     """
 
-    def __init__(self, lat: float = 39.9042, lng: float = 116.4074, timeout: float = 15.0):
+    def __init__(
+        self,
+        city: str = "",
+        lat: float = 31.2304,
+        lng: float = 121.4737,
+        timeout: float = 15.0,
+    ):
+        if city and city in CITY_COORDS:
+            lat, lng = CITY_COORDS[city]
+        elif city:
+            raise ValueError(f"不支持的城市名 '{city}'，请改用经纬度，或从以下城市选择：{', '.join(CITY_COORDS)}")
         self.lat = lat
         self.lng = lng
         self._client = httpx.AsyncClient(

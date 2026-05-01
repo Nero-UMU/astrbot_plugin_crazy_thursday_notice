@@ -19,8 +19,9 @@ class CrazyThursdayPlugin(Star):
         self.cron_expression: str = self.config.get("cron_expression", "0 12 * * 4")
         self.message_text: str = self.config.get("message", "今天是肯德基疯狂星期四！V我50！")
         self.platform_id: str = self._resolve_platform_id(self.config.get("platform_id", ""))
-        self.lat: float = float(self.config.get("lat", 39.9042))
-        self.lng: float = float(self.config.get("lng", 116.4074))
+        self.city: str = self.config.get("city", "上海")
+        self.lat: float = float(self.config.get("lat", 0))
+        self.lng: float = float(self.config.get("lng", 0))
 
         if not self.group_ids:
             logger.warning("[疯狂星期四] 未配置群号，定时推送不会执行。请在插件配置中填写 group_ids。")
@@ -46,7 +47,8 @@ class CrazyThursdayPlugin(Star):
     async def _build_message(self) -> str:
         text = self.message_text
         try:
-            async with KFCMenuFetcher(lat=self.lat, lng=self.lng) as fetcher:
+            fetcher_kwargs = {"city": self.city} if self.city else {"lat": self.lat, "lng": self.lng}
+            async with KFCMenuFetcher(**fetcher_kwargs) as fetcher:
                 menu_text = await fetcher.get_menu_text()
             text = f"{text}\n\n📋 今日菜单：\n{menu_text}"
         except Exception as e:
