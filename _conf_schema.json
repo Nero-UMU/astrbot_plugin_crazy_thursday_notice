@@ -21,25 +21,9 @@
     "description": "推送的文案（菜单会自动附在后面）",
     "default": "今天是肯德基疯狂星期四！V我50！"
   },
-  "mcd_token": {
-    "type": "string",
-    "description": "麦当劳 MCP Token（在 open.mcd.cn 注册后获取）",
-    "default": ""
-  },
-  "mcd_store_code": {
-    "type": "string",
-    "description": "麦当劳门店编号（留空则自动根据城市查找）",
-    "default": ""
-  },
-  "mcd_order_type": {
-    "type": "string",
-    "description": "点单类型：1=堂食，2=外卖",
-    "default": "1",
-    "options": ["1", "2"]
-  },
   "city": {
     "type": "string",
-    "description": "定位城市，用于拉取附近 KFC/麦当劳菜单",
+    "description": "定位城市，用于拉取附近 KFC 菜单",
     "default": "上海市",
     "options": ["上海市", "北京市", "广州市", "深圳市", "杭州市", "成都市", "武汉市", "南京市", "西安市", "重庆市", "天津市", "苏州市", "郑州市", "长沙市", "青岛市", "厦门市", "南昌市", "合肥市", "哈尔滨市", "沈阳市"]
   }

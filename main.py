@@ -4,7 +4,6 @@ from astrbot.api import logger
 from astrbot.api.message_components import Plain
 
 from .kfc_scraper import KFCMenuFetcher
-from .mcd_scraper import MCDMenuFetcher
 
 
 @register("astrbot_plugin_crazy_thursday_notice", "NeroUMU", "每到周四自动向 QQ 群推送疯狂星期四提醒及菜单", "1.0.0")
@@ -22,9 +21,6 @@ class CrazyThursdayPlugin(Star):
         self.message_text: str = self.config.get("message", "今天是肯德基疯狂星期四！V我50！")
         self.platform_id: str = self._resolve_platform_id(self.config.get("platform_id", ""))
         self.city: str = self.config.get("city", "上海市")
-        self.mcd_token: str = self.config.get("mcd_token", "")
-        self.mcd_store_code: str = self.config.get("mcd_store_code", "")
-        self.mcd_order_type: int = int(self.config.get("mcd_order_type", "1") or 1)
 
         if not self.group_ids:
             logger.warning("[疯狂星期四] 未配置群号，定时推送不会执行。请在插件配置中填写 group_ids。")
@@ -75,77 +71,6 @@ class CrazyThursdayPlugin(Star):
                     logger.warning(f"[疯狂星期四] 向群 {group_id} 发送失败：未找到平台 {self.platform_id}。")
             except Exception as e:
                 logger.error(f"[疯狂星期四] 向群 {group_id} 发送出错：{e}")
-
-    async def _get_mcd_store_code(self, fetcher: MCDMenuFetcher) -> str:
-        if self.mcd_store_code:
-            return self.mcd_store_code
-        return await fetcher.get_nearest_store_code(self.city)
-
-    @filter.command("mcdstores")
-    async def mcd_stores(self, event: AstrMessageEvent):
-        """查询附近麦当劳门店列表"""
-        if not self.mcd_token:
-            yield event.plain_result("未配置麦当劳 MCP Token，请在插件配置中填写 mcd_token。")
-            return
-        try:
-            async with MCDMenuFetcher(token=self.mcd_token) as fetcher:
-                stores = await fetcher.find_stores(self.city)
-            if not stores:
-                yield event.plain_result(f"未找到 {self.city} 附近的麦当劳门店。")
-                return
-            lines = [f"📍 {self.city} 附近门店："]
-            for s in stores:
-                dist = f"  {s.get('distance', '')}" if s.get("distance") else ""
-                lines.append(f"  [{s.get('storeCode', '')}] {s.get('storeName', '')}  {s.get('address', '')}{dist}")
-            yield event.plain_result("\n".join(lines))
-        except Exception as e:
-            yield event.plain_result(f"查询门店失败：{e}")
-
-    @filter.command("mcdmenu")
-    async def mcd_menu(self, event: AstrMessageEvent):
-        """获取麦当劳菜单（需在后台配置 mcd_token）"""
-        if not self.mcd_token:
-            yield event.plain_result("未配置麦当劳 MCP Token，请在插件配置中填写 mcd_token。")
-            return
-        try:
-            async with MCDMenuFetcher(token=self.mcd_token) as fetcher:
-                store_code = await self._get_mcd_store_code(fetcher)
-                text = await fetcher.get_menu_text(store_code, self.mcd_order_type)
-            yield event.plain_result(text)
-        except Exception as e:
-            yield event.plain_result(f"获取麦当劳菜单失败：{e}")
-
-    @filter.command("mcddetail")
-    async def mcd_detail(self, event: AstrMessageEvent):
-        """获取麦当劳餐品详情，用法：/mcddetail <餐品编号>"""
-        if not self.mcd_token:
-            yield event.plain_result("未配置麦当劳 MCP Token，请在插件配置中填写 mcd_token。")
-            return
-        args = event.message_str.strip().split(maxsplit=1)
-        if len(args) < 2 or not args[1].strip():
-            yield event.plain_result("请提供餐品编号，用法：/mcddetail <餐品编号>")
-            return
-        code = args[1].strip()
-        try:
-            async with MCDMenuFetcher(token=self.mcd_token) as fetcher:
-                store_code = await self._get_mcd_store_code(fetcher)
-                text = await fetcher.get_meal_detail_text(code, store_code, self.mcd_order_type)
-            yield event.plain_result(text)
-        except Exception as e:
-            yield event.plain_result(f"获取餐品详情失败：{e}")
-
-    @filter.command("mcdcoupon")
-    async def mcd_coupon(self, event: AstrMessageEvent):
-        """获取麦当劳优惠券列表（需在后台配置 mcd_token）"""
-        if not self.mcd_token:
-            yield event.plain_result("未配置麦当劳 MCP Token，请在插件配置中填写 mcd_token。")
-            return
-        try:
-            async with MCDMenuFetcher(token=self.mcd_token) as fetcher:
-                text = await fetcher.get_coupons_text()
-            yield event.plain_result(text)
-        except Exception as e:
-            yield event.plain_result(f"获取麦当劳优惠券失败：{e}")
 
     @filter.command("kfctest")
     async def kfc_test(self, event: AstrMessageEvent):
