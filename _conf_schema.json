@@ -4,15 +4,21 @@
     "description": "要推送消息的 QQ 群号列表",
     "default": []
   },
-  "push_time": {
-    "type": "string",
-    "description": "每周四推送时间",
-    "default": "12:00",
+  "push_days": {
+    "type": "list",
+    "description": "每周推送日期（可多选）",
+    "default": ["周四"],
+    "options": ["周一", "周二", "周三", "周四", "周五", "周六", "周日"]
+  },
+  "push_times": {
+    "type": "list",
+    "description": "每天推送时间（可多选）",
+    "default": ["12:00"],
     "options": ["08:00", "10:00", "11:00", "12:00", "14:00", "16:00", "18:00", "20:00", "22:00"]
   },
   "message": {
     "type": "string",
-    "description": "推送的疯狂星期四文案（菜单会自动附在后面）",
+    "description": "推送的文案（菜单会自动附在后面）",
     "default": "今天是肯德基疯狂星期四！V我50！"
   },
   "city": {

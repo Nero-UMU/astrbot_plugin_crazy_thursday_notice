@@ -16,7 +16,8 @@ class CrazyThursdayPlugin(Star):
 
     async def initialize(self):
         self.group_ids: list[str] = self.config.get("group_ids", [])
-        self.push_time: str = self.config.get("push_time", "12:00")
+        self.push_days: list[str] = self.config.get("push_days", ["周四"])
+        self.push_times: list[str] = self.config.get("push_times", ["12:00"])
         self.message_text: str = self.config.get("message", "今天是肯德基疯狂星期四！V我50！")
         self.platform_id: str = self._resolve_platform_id(self.config.get("platform_id", ""))
         self.city: str = self.config.get("city", "上海")
@@ -25,14 +26,16 @@ class CrazyThursdayPlugin(Star):
             logger.warning("[疯狂星期四] 未配置群号，定时推送不会执行。请在插件配置中填写 group_ids。")
             return
 
-        hour, minute = self.push_time.split(":")
-        cron_expression = f"{minute} {hour} * * 4"
+        _day_map = {"周日": "0", "周一": "1", "周二": "2", "周三": "3", "周四": "4", "周五": "5", "周六": "6"}
+        days_str = ",".join(_day_map[d] for d in self.push_days if d in _day_map) or "4"
+        hours_str = ",".join(t.split(":")[0].lstrip("0") or "0" for t in self.push_times) or "12"
+        cron_expression = f"0 {hours_str} * * {days_str}"
 
         self._cron_job = await self.context.cron_manager.add_basic_job(
             name="crazy_thursday_notice",
             cron_expression=cron_expression,
             handler=self._push_notice,
-            description="每周四疯狂星期四提醒",
+            description=f"KFC 菜单推送（{', '.join(self.push_days)} {', '.join(self.push_times)}）",
             timezone="Asia/Shanghai",
         )
         logger.info(f"[疯狂星期四] 定时任务已注册，将向 {len(self.group_ids)} 个群推送。")
