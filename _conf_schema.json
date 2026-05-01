@@ -28,12 +28,12 @@
     "default": "今天是肯德基疯狂星期四！V我50！"
   },
   "enable_menu": {
-    "type": "boolean",
+    "type": "bool",
     "description": "是否在推送时附带 KFC 当日菜单",
     "default": true
   },
   "enable_crazy_copy": {
-    "type": "boolean",
+    "type": "bool",
     "description": "是否在推送时附带疯四文案（从 v50.deno.dev 获取）",
     "default": true
   },
