@@ -44,9 +44,7 @@ class CrazyThursdayPlugin(Star):
         )
         self.enable_menu: bool = self.config.get("enable_menu", True)
         self.enable_crazy_copy: bool = self.config.get("enable_crazy_copy", True)
-        self.platform_id: str = self._resolve_platform_id(
-            self.config.get("platform_id", "")
-        )
+        self.platform_id: str = self.config.get("platform_id", "")
         self.city: str = self.config.get("city", "上海市")
 
         if not self.group_ids:
@@ -82,13 +80,12 @@ class CrazyThursdayPlugin(Star):
             f"[疯狂星期四] 定时任务已注册，将向 {len(self.group_ids)} 个群推送。"
         )
 
-    def _resolve_platform_id(self, configured: str) -> str:
-        if configured:
-            return configured
+    def _resolve_platform_id(self) -> str | None:
+        """返回当前在线的 aiocqhttp 平台实例 ID，未找到返回 None。"""
         for platform in self.context.platform_manager.platform_insts:
             if platform.meta().name == "aiocqhttp":
                 return platform.meta().id
-        return "aiocqhttp"
+        return None
 
     # ── KFC ───────────────────────────────────────────────────────
 
@@ -113,9 +110,14 @@ class CrazyThursdayPlugin(Star):
         return parts
 
     async def _push_notice(self):
+        platform_id = self.platform_id or self._resolve_platform_id()
+        if not platform_id:
+            logger.warning("[疯狂星期四] 未找到 aiocqhttp 平台，推送取消。")
+            return
+
         messages = await self._build_kfc_messages()
         for group_id in self.group_ids:
-            session = f"{self.platform_id}:GroupMessage:{group_id}"
+            session = f"{platform_id}:GroupMessage:{group_id}"
             for content in messages:
                 try:
                     success = await self.context.send_message(
@@ -125,7 +127,7 @@ class CrazyThursdayPlugin(Star):
                         logger.info(f"[疯狂星期四] 已向群 {group_id} 推送消息。")
                     else:
                         logger.warning(
-                            f"[疯狂星期四] 向群 {group_id} 发送失败：未找到平台 {self.platform_id}。"
+                            f"[疯狂星期四] 向群 {group_id} 发送失败：未找到平台 {platform_id}。"
                         )
                 except Exception as e:
                     logger.error(f"[疯狂星期四] 向群 {group_id} 发送出错：{e}")
