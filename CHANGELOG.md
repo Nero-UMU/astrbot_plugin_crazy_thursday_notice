@@ -1,5 +1,15 @@
 # Changelog
 
+## v2.3.2
+
+### 变更
+- 疯四文案数据源由 `v50.deno.dev` 切换至 `vme.im/api/random`（JSON 响应，取 `body` 字段）
+
+## v2.3.1
+
+### 修复
+- 平台 ID 改为推送时动态查找，修复启动时序问题导致推送失败的问题
+
 ## v2.3.0
 
 ### 新增
@@ -16,3 +26,6 @@
 
 ### 修复
 - 星期映射改用文字缩写（`mon`/`thu` 等），修复 APScheduler 数字映射歧义导致推送日期偏移的问题
+
+### 移除
+- 麦当劳 MCP 相关所有功能（`mcd_scraper.py`、`/mcdstore`、`/mcdmenu`、`/mcdfood`、`/mcdcoupon`、`/mcdtools` 及其配置项）

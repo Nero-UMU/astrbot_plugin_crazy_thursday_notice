@@ -7,7 +7,7 @@ from astrbot.api.star import Context, Star, register
 
 from .kfc_scraper import KFCMenuFetcher
 
-_CRAZY_COPY_URL = "https://v50.deno.dev/"
+_CRAZY_COPY_URL = "https://vme.im/api/random"
 
 
 async def _fetch_crazy_copy() -> str:
@@ -15,7 +15,7 @@ async def _fetch_crazy_copy() -> str:
         async with httpx.AsyncClient(timeout=10) as client:
             resp = await client.get(_CRAZY_COPY_URL)
             resp.raise_for_status()
-            return resp.text.strip()
+            return resp.json().get("body", "").strip()
     except Exception as e:
         logger.warning(f"[疯狂星期四] 获取疯四文案失败：{e}")
         return ""
